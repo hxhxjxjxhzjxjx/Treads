@@ -426,3 +426,14 @@ fieldset.field legend { padding: 0 6px; }
   .product-row { grid-template-columns: 1fr 90px 36px; }
   .app-header h1 { font-size: 16px; }
 }
+
+/* About tab */
+.about h3 {
+  margin-top: 1.2em;
+  margin-bottom: 0.3em;
+  font-size: 1.05em;
+  color: var(--primary);
+}
+.about p { margin: 0.5em 0; }
+.about ul { margin: 0.3em 0 0.5em 1.2em; padding: 0; }
+.about ul li { margin: 0.2em 0; }
