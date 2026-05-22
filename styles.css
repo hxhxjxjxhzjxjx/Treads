@@ -142,6 +142,16 @@ fieldset.field legend { padding: 0 6px; }
 }
 .radio input { margin: 0; }
 
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+}
+.checkbox input { margin: 0; }
+
 .section-header {
   display: flex;
   justify-content: space-between;

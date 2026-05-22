@@ -20,6 +20,10 @@ function escapeHTML(s) {
 const MAX_SEG_HARD = 9500;
 const MIN_SEG_ADD = 1000;
 const MAX_ADD_RATIO = 0.4;
+// Шаг длин отрезков — 1 см (10 мм). Все подбираемые осн./доп. кратны этому шагу.
+const SEG_STEP = 10;
+const floorTo = (v, step) => Math.floor(v / step) * step;
+const ceilTo  = (v, step) => Math.ceil(v / step) * step;
 const HISTORY_KEY = 'pipe-cutter:history';
 const INPUT_KEY = 'pipe-cutter:lastInput';
 const MAX_HISTORY = 200;
@@ -72,49 +76,107 @@ const state = {
 // =========================================================
 
 /**
- * Для одного изделия L_i подбирает разбиение по правилу:
- *   - максимум L_main;
- *   - при равенстве — минимум суммы доп. длин (для 2 швов — отдельная развязка).
- * Возвращает { main, adds: [add1] | [add1, add2] } либо null.
+ * Возвращает массив допустимых разбиений изделия L_i, отсортированных:
+ *   1) основная часть L_main по убыванию;
+ *   2) при равенстве — сумма Σдоп по возрастанию.
+ * Каждый элемент: { main, adds: [add1] | [add1, add2], sumAdds }.
+ * Параметр K — максимальное число возвращаемых уникальных кандидатов.
  */
-function findBestPartition(L_i, seams, L_calc) {
+function getCandidatePartitions(L_i, seams, L_calc, K = 5) {
+  if (L_i <= 0 || K <= 0) return [];
+  // Длина изделия должна быть кратна SEG_STEP — иначе все подборы дадут некратные отрезки.
+  if (L_i % SEG_STEP !== 0) return [];
   const maxSeg = Math.min(MAX_SEG_HARD, L_calc);
-  if (L_i <= 0) return null;
+  const all = [];
 
   if (seams === 1) {
-    const lowMain = Math.max(MIN_SEG_ADD, Math.ceil(L_i / (1 + MAX_ADD_RATIO)));
-    const highMain = Math.min(maxSeg, L_i - MIN_SEG_ADD);
-    for (let main = highMain; main >= lowMain; main--) {
+    const rawLow  = Math.max(MIN_SEG_ADD, Math.ceil(L_i / (1 + MAX_ADD_RATIO)));
+    const rawHigh = Math.min(maxSeg, L_i - MIN_SEG_ADD);
+    const lowMain  = ceilTo(rawLow, SEG_STEP);
+    const highMain = floorTo(rawHigh, SEG_STEP);
+    for (let main = highMain; main >= lowMain; main -= SEG_STEP) {
       const add = L_i - main;
       if (add < MIN_SEG_ADD) continue;
       if (add > maxSeg) continue;
       if (add > MAX_ADD_RATIO * main + 1e-9) continue;
-      return { main, adds: [add] };
+      // add автоматически кратен 10, т.к. L_i и main кратны 10.
+      all.push({ main, adds: [add], sumAdds: add });
     }
-    return null;
-  }
-
-  if (seams === 2) {
-    const lowMain = Math.max(MIN_SEG_ADD, Math.ceil(L_i / (1 + 2 * MAX_ADD_RATIO)));
-    const highMain = Math.min(maxSeg, L_i - 2 * MIN_SEG_ADD);
-    for (let main = highMain; main >= lowMain; main--) {
+  } else if (seams === 2) {
+    const rawLow  = Math.max(MIN_SEG_ADD, Math.ceil(L_i / (1 + 2 * MAX_ADD_RATIO)));
+    const rawHigh = Math.min(maxSeg, L_i - 2 * MIN_SEG_ADD);
+    const lowMain  = ceilTo(rawLow, SEG_STEP);
+    const highMain = floorTo(rawHigh, SEG_STEP);
+    for (let main = highMain; main >= lowMain; main -= SEG_STEP) {
       const sumAdds = L_i - main;
-      const maxAdd = Math.min(Math.floor(MAX_ADD_RATIO * main), maxSeg);
-      const lowAdd1 = Math.max(MIN_SEG_ADD, sumAdds - maxAdd);
-      const highAdd1 = Math.min(maxAdd, sumAdds - MIN_SEG_ADD);
+      const maxAdd = Math.min(floorTo(MAX_ADD_RATIO * main, SEG_STEP), maxSeg);
+      // add1 ≤ add2, все кратны 10.
+      const lowAdd1raw  = Math.max(MIN_SEG_ADD, sumAdds - maxAdd);
+      const highAdd1raw = Math.min(maxAdd, Math.floor(sumAdds / 2));
+      const lowAdd1  = ceilTo(lowAdd1raw, SEG_STEP);
+      const highAdd1 = floorTo(highAdd1raw, SEG_STEP);
       if (lowAdd1 > highAdd1) continue;
-      // балансируем add1 ≈ sumAdds / 2, оставаясь в допустимом диапазоне
-      const ideal = Math.floor(sumAdds / 2);
-      const add1 = Math.max(lowAdd1, Math.min(highAdd1, ideal));
-      const add2 = sumAdds - add1;
-      if (add1 < MIN_SEG_ADD || add1 > maxAdd) continue;
-      if (add2 < MIN_SEG_ADD || add2 > maxAdd) continue;
-      return { main, adds: [add1, add2] };
+      // Сбалансированный (add1 ≈ add2) кандидат идёт первым.
+      const seen = new Set();
+      const idealMid = floorTo(sumAdds / 2, SEG_STEP);
+      const balanced = Math.max(lowAdd1, Math.min(highAdd1, idealMid));
+      for (const a1 of [balanced, lowAdd1, highAdd1]) {
+        if (seen.has(a1)) continue;
+        seen.add(a1);
+        const a2 = sumAdds - a1;
+        if (a1 < MIN_SEG_ADD || a1 > maxAdd) continue;
+        if (a2 < MIN_SEG_ADD || a2 > maxAdd) continue;
+        const adds = a1 <= a2 ? [a1, a2] : [a2, a1];
+        all.push({ main, adds, sumAdds });
+      }
     }
-    return null;
   }
 
-  return null;
+  if (!all.length) return [];
+
+  // Сортировка: основная ↓, сумма доп. ↑, затем равномерность ↑ (предпочесть [a1,a2] ближе друг к другу).
+  all.sort((a, b) => {
+    if (b.main !== a.main) return b.main - a.main;
+    if (a.sumAdds !== b.sumAdds) return a.sumAdds - b.sumAdds;
+    const sa = a.adds.length === 2 ? Math.abs(a.adds[1] - a.adds[0]) : 0;
+    const sb = b.adds.length === 2 ? Math.abs(b.adds[1] - b.adds[0]) : 0;
+    return sa - sb;
+  });
+
+  // K = 1 — вернуть только лучшее разбиение (макс. основная).
+  if (K === 1) {
+    return [all[0]];
+  }
+
+  // Для перебора собираем разнообразные варианты по основной длине:
+  // - всегда включаем лучший (максимальная основная);
+  // - дополнительно семплируем равномерно по диапазону main-значений,
+  //   чтобы охватить как «длинные доп.», так и «короткие доп.».
+  const byMainDesc = [];
+  const seenMain = new Set();
+  for (const p of all) {
+    if (seenMain.has(p.main)) continue;
+    seenMain.add(p.main);
+    byMainDesc.push(p);
+  }
+  const sample = [byMainDesc[0]];
+  if (byMainDesc.length > 1 && K > 1) {
+    const step = (byMainDesc.length - 1) / (K - 1);
+    for (let i = 1; i < K; i++) {
+      const idx = Math.min(byMainDesc.length - 1, Math.round(i * step));
+      const cand = byMainDesc[idx];
+      if (!sample.includes(cand)) sample.push(cand);
+    }
+  }
+  return sample.slice(0, K);
+}
+
+/**
+ * Совместимая обёртка над getCandidatePartitions: вернуть лучший единственный вариант.
+ */
+function findBestPartition(L_i, seams, L_calc) {
+  const cands = getCandidatePartitions(L_i, seams, L_calc, 1);
+  return cands.length ? { main: cands[0].main, adds: cands[0].adds } : null;
 }
 
 /**
@@ -226,8 +288,8 @@ function aggregatePatterns(pipes, typeList, L_calc, algorithm) {
 }
 
 /**
- * Подобрать партицию: текущая seams; если не подошло — пробуем альтернативную
- * и формируем подсказку.
+ * Подобрать партицию для каждого изделия. Используется в обычном режиме
+ * (одно лучшее разбиение). Возвращает массив { main, adds } и список ошибок.
  */
 function planPartitions(products, seams, L_calc) {
   const partitions = [];
@@ -248,6 +310,203 @@ function planPartitions(products, seams, L_calc) {
     partitions.push(part);
   });
   return { partitions, problems };
+}
+
+/**
+ * Перебор комбинаций кандидатов разбиений по изделиям (декартово произведение)
+ * с ограничением общего числа комбинаций.
+ * Возвращает массив массивов partitions (по индексам изделий).
+ */
+function enumerateCombos(candidatesPerProduct, maxCombos) {
+  if (!candidatesPerProduct.length) return [];
+  // Если у какого-то изделия нет кандидатов — комбинаций нет.
+  if (candidatesPerProduct.some(c => !c.length)) return [];
+  const total = candidatesPerProduct.reduce((a, c) => a * c.length, 1);
+  const cap = Math.min(total, maxCombos);
+  const combos = [];
+  const N = candidatesPerProduct.length;
+  const current = new Array(N);
+  function rec(idx) {
+    if (combos.length >= cap) return;
+    if (idx === N) {
+      combos.push(current.slice());
+      return;
+    }
+    for (const c of candidatesPerProduct[idx]) {
+      current[idx] = c;
+      rec(idx + 1);
+      if (combos.length >= cap) return;
+    }
+  }
+  rec(0);
+  return combos;
+}
+
+/**
+ * Генерирует все валидные паттерны раскроя (набор отрезков, помещающихся в трубу),
+ * с учётом ограничений по спросу на каждый тип.
+ * Паттерн — массив длиной N (типов), значения ≥ 0, сумма длин ≤ L_calc.
+ * Cap maxPatterns останавливает обход при слишком большом числе вариантов.
+ */
+function generateAllPatterns(types, L_calc, maxPatterns = 8000) {
+  const N = types.length;
+  const counts = new Array(N).fill(0);
+  const patterns = [];
+  let stopped = false;
+  function rec(idx, usedLen) {
+    if (stopped) return;
+    if (idx === N) {
+      // Минимум 1 отрезок
+      let any = false;
+      for (let i = 0; i < N; i++) if (counts[i] > 0) { any = true; break; }
+      if (any) {
+        patterns.push(counts.slice());
+        if (patterns.length >= maxPatterns) stopped = true;
+      }
+      return;
+    }
+    const t = types[idx];
+    const free = L_calc - usedLen;
+    const maxK = Math.min(t.count, Math.floor(free / t.length));
+    for (let k = 0; k <= maxK; k++) {
+      counts[idx] = k;
+      rec(idx + 1, usedLen + k * t.length);
+      if (stopped) return;
+    }
+    counts[idx] = 0;
+  }
+  rec(0, 0);
+  return patterns;
+}
+
+/**
+ * Точный раскрой: используется полная генерация паттернов + жадный
+ * пошаговый выбор по убыванию заполнения (минимум отхода на трубу),
+ * с ограничением на остаточный спрос.
+ *
+ * Это эквивалент столбцовой эвристики LP-релаксации: даёт оптимум или
+ * близкое к нему решение при разумном числе паттернов.
+ *
+ * Возвращает структуру { patterns, totalPipes, totalWaste, algorithm } —
+ * совместимую с aggregatePatterns.
+ */
+function solveExact(typeList, L_calc, opts = {}) {
+  const maxPatterns = opts.maxPatterns || 8000;
+  const types = typeList.map((t, idx) => ({ length: t.length, count: t.count, idx }));
+  const allPatterns = generateAllPatterns(types, L_calc, maxPatterns);
+  if (!allPatterns.length) return null;
+
+  // Для каждого паттерна — заполнение и отход.
+  const ranked = allPatterns.map(p => {
+    const filled = p.reduce((s, c, j) => s + c * types[j].length, 0);
+    return { p, filled, waste: L_calc - filled };
+  });
+  // Сортируем по минимальному отходу.
+  ranked.sort((a, b) => a.waste - b.waste);
+
+  const demand = types.map(t => t.count);
+  const used = new Map(); // idxInRanked -> count
+
+  while (demand.some(d => d > 0)) {
+    // Лучший паттерн, который реально покрывает остаток спроса.
+    let chosen = -1;
+    let chosenReps = 0;
+    for (let r = 0; r < ranked.length; r++) {
+      const p = ranked[r].p;
+      let maxRepeats = Infinity;
+      let useful = false;
+      for (let j = 0; j < p.length; j++) {
+        if (p[j] === 0) continue;
+        useful = true;
+        const k = Math.floor(demand[j] / p[j]);
+        if (k < maxRepeats) maxRepeats = k;
+        if (maxRepeats === 0) break;
+      }
+      if (!useful || maxRepeats === 0 || maxRepeats === Infinity) continue;
+      chosen = r;
+      chosenReps = maxRepeats;
+      break; // ranked отсортирован по отходу — первый найденный лучший.
+    }
+    if (chosen < 0) return null; // не покрывается полностью паттернами — fallback на FFD
+    used.set(chosen, (used.get(chosen) || 0) + chosenReps);
+    const p = ranked[chosen].p;
+    for (let j = 0; j < p.length; j++) demand[j] -= p[j] * chosenReps;
+  }
+
+  // Собираем результат в формате aggregatePatterns.
+  const pipes = [];
+  for (const [r, cnt] of used) {
+    const p = ranked[r].p;
+    const contents = new Map();
+    for (let j = 0; j < p.length; j++) if (p[j] > 0) contents.set(j, p[j]);
+    const filled = ranked[r].filled;
+    for (let i = 0; i < cnt; i++) {
+      pipes.push({ used: filled, contents: new Map(contents) });
+    }
+  }
+  return aggregatePatterns(pipes, typeList, L_calc, 'exact');
+}
+
+/**
+ * Сравнение двух результатов раскроя. Лучше тот, где меньше труб; при равенстве — меньше отход.
+ */
+function isBetterResult(a, b) {
+  if (!b) return true;
+  if (a.totalPipes !== b.totalPipes) return a.totalPipes < b.totalPipes;
+  return a.totalWaste < b.totalWaste;
+}
+
+/**
+ * Основная функция: с учётом точного/обычного режима подбирает разбиения
+ * и решает раскрой. Возвращает { partitions, typeList, cutResult, combosTried }.
+ */
+function planAndCut(input, lCalc, exactMode) {
+  const K = exactMode ? 5 : 1;
+  const maxCombos = exactMode ? 200 : 1;
+  const candidates = input.products.map(p =>
+    getCandidatePartitions(p.length, input.seams, lCalc, K)
+  );
+
+  // Если хоть у одного изделия нет разбиений — ошибка.
+  const noVariant = candidates.map((c, i) => c.length === 0 ? i : -1).filter(i => i >= 0);
+  if (noVariant.length) {
+    const problems = noVariant.map(i => {
+      const p = input.products[i];
+      const alt = getCandidatePartitions(p.length, input.seams === 1 ? 2 : 1, lCalc, 1);
+      let msg = `Изделие ${i + 1} (${fmtNum(p.length)} мм): не удалось подобрать разбиение `
+              + `для ${input.seams === 1 ? '1 шва' : '2 швов'} в трубе ${fmtNum(lCalc)} мм.`;
+      msg += alt.length
+        ? ` Попробуйте ${input.seams === 1 ? '2 шва' : '1 шов'} — там есть допустимое разбиение.`
+        : ` Также нет допустимого разбиения для ${input.seams === 1 ? '2 швов' : '1 шва'}.`;
+      return msg;
+    });
+    return { problems };
+  }
+
+  const combos = enumerateCombos(candidates, maxCombos);
+  const timeBudgetMs = exactMode ? 4500 : 500;
+  const t0 = Date.now();
+
+  let best = null;
+  let combosTried = 0;
+  for (const combo of combos) {
+    if (Date.now() - t0 > timeBudgetMs) break;
+    combosTried++;
+    const partitions = combo.map(c => ({ main: c.main, adds: c.adds }));
+    const typeList = buildTypeList(input.products, partitions);
+    let cutResult;
+    if (exactMode) {
+      cutResult = solveExact(typeList, lCalc) || solveCuttingFFD(typeList, lCalc);
+    } else {
+      cutResult = solveCuttingFFD(typeList, lCalc);
+    }
+    if (isBetterResult(cutResult, best && best.cutResult)) {
+      best = { partitions, typeList, cutResult };
+    }
+  }
+
+  if (!best) return { problems: ['Не удалось построить ни одного допустимого плана.'] };
+  return { partitions: best.partitions, typeList: best.typeList, cutResult: best.cutResult, combosTried };
 }
 
 // =========================================================
@@ -337,13 +596,19 @@ function validateInput(input) {
   const errors = [];
   if (input.lNom <= 0) errors.push('Номинальная длина трубы должна быть положительной.');
   if (input.delta < 0) errors.push('Допуск не может быть отрицательным.');
-  const lCalc = input.lNom - input.delta;
+  // L_calc округляем вниз до кратного SEG_STEP — все длины в расчёте будут кратны 10 мм.
+  const lCalc = floorTo(input.lNom - input.delta, SEG_STEP);
   if (lCalc <= 0) errors.push(`L_calc = ${lCalc} мм ≤ 0. Проверьте параметры.`);
   if (lCalc < MIN_SEG_ADD) errors.push(`L_calc = ${lCalc} мм меньше минимального отрезка (${MIN_SEG_ADD} мм).`);
   if (!input.products.length) errors.push('Добавьте хотя бы одно изделие.');
   input.products.forEach((p, i) => {
     if (p.length <= 0) errors.push(`Изделие ${i + 1}: длина должна быть положительной.`);
     if (p.count <= 0) errors.push(`Изделие ${i + 1}: количество должно быть положительным.`);
+    if (p.length > 0 && p.length % SEG_STEP !== 0) {
+      const lower = floorTo(p.length, SEG_STEP);
+      const upper = lower + SEG_STEP;
+      errors.push(`Изделие ${i + 1}: длина должна быть кратна ${SEG_STEP} мм (например ${fmtNum(lower)} или ${fmtNum(upper)}).`);
+    }
   });
   return { errors, lCalc };
 }
@@ -358,31 +623,30 @@ async function performCalc() {
     return;
   }
 
-  showProgress(true, 'Подбираем разбиения изделий…');
+  const exactMode = !!$('#exact-mode').checked;
+  showProgress(true, exactMode
+    ? 'Перебираем варианты разбиений и патернов…'
+    : 'Подбираем разбиения изделий…');
   await sleep(20);
 
-  const { partitions, problems } = planPartitions(input.products, input.seams, lCalc);
-  if (problems.length) {
-    showResultError(problems);
-    showProgress(false);
-    return;
-  }
-
-  showProgress(true, 'Считаем план раскроя…');
-  await sleep(20);
-
-  const typeList = buildTypeList(input.products, partitions);
-  let cutResult;
+  let plan;
   try {
-    cutResult = solveCuttingFFD(typeList, lCalc);
+    plan = planAndCut(input, lCalc, exactMode);
   } catch (e) {
     showResultError([e.message || String(e)]);
     showProgress(false);
     return;
   }
+  if (plan.problems && plan.problems.length) {
+    showResultError(plan.problems);
+    showProgress(false);
+    return;
+  }
 
   showProgress(false);
-  renderResult(input, lCalc, partitions, typeList, cutResult);
+  plan.cutResult.combosTried = plan.combosTried;
+  plan.cutResult.exactMode = exactMode;
+  renderResult(input, lCalc, plan.partitions, plan.typeList, plan.cutResult);
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -451,7 +715,9 @@ function renderResult(input, lCalc, partitions, typeList, cutResult) {
           <div class="value">${fmtNum(lCalc)} мм</div>
         </div>
       </div>
-      <p class="muted">Алгоритм раскроя: First-Fit Decreasing (приближённое решение для cutting-stock).</p>
+      <p class="muted">${cutResult.algorithm === 'exact'
+        ? `Алгоритм раскроя: точный перебор паттернов (рассмотрено ${fmtNum(cutResult.combosTried || 1)} комбинаций разбиений).`
+        : 'Алгоритм раскроя: First-Fit Decreasing (приближённое решение для cutting-stock).'}</p>
     </div>
   `;
 
@@ -741,7 +1007,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // Expose algorithm primitives for unit tests / debugging in console.
 window.PipeCutter = {
   findBestPartition,
+  getCandidatePartitions,
+  enumerateCombos,
+  generateAllPatterns,
   buildTypeList,
   solveCuttingFFD,
-  planPartitions
+  solveExact,
+  planPartitions,
+  planAndCut
 };
