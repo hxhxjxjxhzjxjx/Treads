@@ -20,6 +20,10 @@ function escapeHTML(s) {
 const MAX_SEG_HARD = 9500;
 const MIN_SEG_ADD = 1000;
 const MAX_ADD_RATIO = 0.4;
+// Шаг длин отрезков — 1 см (10 мм). Все подбираемые осн./доп. кратны этому шагу.
+const SEG_STEP = 10;
+const floorTo = (v, step) => Math.floor(v / step) * step;
+const ceilTo  = (v, step) => Math.ceil(v / step) * step;
 const HISTORY_KEY = 'pipe-cutter:history';
 const INPUT_KEY = 'pipe-cutter:lastInput';
 const MAX_HISTORY = 200;
@@ -80,32 +84,42 @@ const state = {
  */
 function getCandidatePartitions(L_i, seams, L_calc, K = 5) {
   if (L_i <= 0 || K <= 0) return [];
+  // Длина изделия должна быть кратна SEG_STEP — иначе все подборы дадут некратные отрезки.
+  if (L_i % SEG_STEP !== 0) return [];
   const maxSeg = Math.min(MAX_SEG_HARD, L_calc);
   const all = [];
 
   if (seams === 1) {
-    const lowMain = Math.max(MIN_SEG_ADD, Math.ceil(L_i / (1 + MAX_ADD_RATIO)));
-    const highMain = Math.min(maxSeg, L_i - MIN_SEG_ADD);
-    for (let main = highMain; main >= lowMain; main--) {
+    const rawLow  = Math.max(MIN_SEG_ADD, Math.ceil(L_i / (1 + MAX_ADD_RATIO)));
+    const rawHigh = Math.min(maxSeg, L_i - MIN_SEG_ADD);
+    const lowMain  = ceilTo(rawLow, SEG_STEP);
+    const highMain = floorTo(rawHigh, SEG_STEP);
+    for (let main = highMain; main >= lowMain; main -= SEG_STEP) {
       const add = L_i - main;
       if (add < MIN_SEG_ADD) continue;
       if (add > maxSeg) continue;
       if (add > MAX_ADD_RATIO * main + 1e-9) continue;
+      // add автоматически кратен 10, т.к. L_i и main кратны 10.
       all.push({ main, adds: [add], sumAdds: add });
     }
   } else if (seams === 2) {
-    const lowMain = Math.max(MIN_SEG_ADD, Math.ceil(L_i / (1 + 2 * MAX_ADD_RATIO)));
-    const highMain = Math.min(maxSeg, L_i - 2 * MIN_SEG_ADD);
-    for (let main = highMain; main >= lowMain; main--) {
+    const rawLow  = Math.max(MIN_SEG_ADD, Math.ceil(L_i / (1 + 2 * MAX_ADD_RATIO)));
+    const rawHigh = Math.min(maxSeg, L_i - 2 * MIN_SEG_ADD);
+    const lowMain  = ceilTo(rawLow, SEG_STEP);
+    const highMain = floorTo(rawHigh, SEG_STEP);
+    for (let main = highMain; main >= lowMain; main -= SEG_STEP) {
       const sumAdds = L_i - main;
-      const maxAdd = Math.min(Math.floor(MAX_ADD_RATIO * main), maxSeg);
-      // Чтобы избежать дублей add1/add2 — берём add1 ≤ add2 (т.е. add1 ≤ sumAdds/2).
-      const lowAdd1 = Math.max(MIN_SEG_ADD, sumAdds - maxAdd);
-      const highAdd1 = Math.min(maxAdd, Math.floor(sumAdds / 2));
+      const maxAdd = Math.min(floorTo(MAX_ADD_RATIO * main, SEG_STEP), maxSeg);
+      // add1 ≤ add2, все кратны 10.
+      const lowAdd1raw  = Math.max(MIN_SEG_ADD, sumAdds - maxAdd);
+      const highAdd1raw = Math.min(maxAdd, Math.floor(sumAdds / 2));
+      const lowAdd1  = ceilTo(lowAdd1raw, SEG_STEP);
+      const highAdd1 = floorTo(highAdd1raw, SEG_STEP);
       if (lowAdd1 > highAdd1) continue;
-      // Сбалансированный (add1 ≈ add2) кандидат идёт первым — даёт более «удобные» равные отрезки.
+      // Сбалансированный (add1 ≈ add2) кандидат идёт первым.
       const seen = new Set();
-      const balanced = Math.max(lowAdd1, Math.min(highAdd1, Math.floor(sumAdds / 2)));
+      const idealMid = floorTo(sumAdds / 2, SEG_STEP);
+      const balanced = Math.max(lowAdd1, Math.min(highAdd1, idealMid));
       for (const a1 of [balanced, lowAdd1, highAdd1]) {
         if (seen.has(a1)) continue;
         seen.add(a1);
@@ -582,13 +596,19 @@ function validateInput(input) {
   const errors = [];
   if (input.lNom <= 0) errors.push('Номинальная длина трубы должна быть положительной.');
   if (input.delta < 0) errors.push('Допуск не может быть отрицательным.');
-  const lCalc = input.lNom - input.delta;
+  // L_calc округляем вниз до кратного SEG_STEP — все длины в расчёте будут кратны 10 мм.
+  const lCalc = floorTo(input.lNom - input.delta, SEG_STEP);
   if (lCalc <= 0) errors.push(`L_calc = ${lCalc} мм ≤ 0. Проверьте параметры.`);
   if (lCalc < MIN_SEG_ADD) errors.push(`L_calc = ${lCalc} мм меньше минимального отрезка (${MIN_SEG_ADD} мм).`);
   if (!input.products.length) errors.push('Добавьте хотя бы одно изделие.');
   input.products.forEach((p, i) => {
     if (p.length <= 0) errors.push(`Изделие ${i + 1}: длина должна быть положительной.`);
     if (p.count <= 0) errors.push(`Изделие ${i + 1}: количество должно быть положительным.`);
+    if (p.length > 0 && p.length % SEG_STEP !== 0) {
+      const lower = floorTo(p.length, SEG_STEP);
+      const upper = lower + SEG_STEP;
+      errors.push(`Изделие ${i + 1}: длина должна быть кратна ${SEG_STEP} мм (например ${fmtNum(lower)} или ${fmtNum(upper)}).`);
+    }
   });
   return { errors, lCalc };
 }
