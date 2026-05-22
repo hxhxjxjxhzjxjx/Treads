@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e6091">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Раскрой труб">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<link rel="icon" type="image/svg+xml" href="icon-192.svg">
+<title>Калькулятор раскроя труб</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="app-header">
+  <h1>Калькулятор раскроя труб</h1>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="calc">Расчёт</button>
+    <button class="tab-btn" data-tab="history">История</button>
+    <button class="tab-btn" data-tab="about">О программе</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ TAB: CALC ============ -->
+  <section id="tab-calc" class="tab-content active">
+    <form id="calc-form" class="card">
+      <div class="field">
+        <label for="calc-name">Название расчёта</label>
+        <input type="text" id="calc-name" placeholder="Например: Заказ №123" autocomplete="off">
+      </div>
+
+      <div class="row two-col">
+        <div class="field">
+          <label for="l-nom">Номинальная длина трубы, мм</label>
+          <input type="number" id="l-nom" value="11500" min="1" step="1" required>
+        </div>
+        <div class="field">
+          <label for="delta">Допуск ±, мм</label>
+          <input type="number" id="delta" value="100" min="0" step="1" required>
+        </div>
+      </div>
+
+      <div class="calc-length-info">
+        Расчётная длина трубы: <strong id="l-calc-display">11400</strong> мм
+      </div>
+
+      <fieldset class="field">
+        <legend>Количество швов</legend>
+        <label class="radio">
+          <input type="radio" name="seams" value="1" checked>
+          <span>1 шов (2 части)</span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="seams" value="2">
+          <span>2 шва (3 части)</span>
+        </label>
+      </fieldset>
+
+      <div class="field">
+        <div class="section-header">
+          <h2>Изделия</h2>
+          <button type="button" id="add-product" class="btn-secondary">+ Добавить изделие</button>
+        </div>
+        <div id="products-list" class="products-list"></div>
+      </div>
+
+      <button type="submit" id="calc-btn" class="btn-primary">Рассчитать</button>
+    </form>
+
+    <div id="progress" class="progress hidden">
+      <div class="progress-bar"><div class="progress-fill"></div></div>
+      <div class="progress-text">Идёт расчёт…</div>
+    </div>
+
+    <div id="result" class="result hidden"></div>
+  </section>
+
+  <!-- ============ TAB: HISTORY ============ -->
+  <section id="tab-history" class="tab-content">
+    <div class="card">
+      <div class="section-header">
+        <h2>История расчётов</h2>
+        <button type="button" id="clear-history" class="btn-danger">Очистить всю историю</button>
+      </div>
+      <div id="history-list" class="history-list"></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB: ABOUT ============ -->
+  <section id="tab-about" class="tab-content">
+    <div class="card">
+      <h2>О программе</h2>
+      <p>Калькулятор раскроя труб для сварных изделий. Полностью офлайн-приложение (PWA).</p>
+      <ul>
+        <li>Все размеры — миллиметры.</li>
+        <li>Расчёт ведётся по минимальной длине трубы: L_calc = L_nom − Δ.</li>
+        <li>Основная часть ≤ 9500 мм. Привариваемые отрезки ≥ 1000 мм и ≤ 40% от длины основной части, ≤ 9500 мм.</li>
+        <li>Выбирается разбиение с максимальной основной частью; при равенстве — с минимальной суммой дополнительных.</li>
+        <li>Минимизируется количество труб (приоритет), затем общий отход.</li>
+        <li>Алгоритм раскроя: жадный FFD по убыванию длин с группировкой повторяющихся паттернов. Для небольших задач выполняется уточняющий локальный поиск.</li>
+        <li>Данные сохраняются в localStorage. Можно установить на домашний экран как PWA.</li>
+      </ul>
+      <p class="muted">Версия 1.0</p>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+  });
+}
+</script>
+</body>
+</html>

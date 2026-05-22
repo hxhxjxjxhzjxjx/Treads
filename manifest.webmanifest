@@ -1,0 +1,27 @@
+{
+  "name": "Калькулятор раскроя труб",
+  "short_name": "Раскрой труб",
+  "description": "Офлайн-калькулятор раскроя труб для сварных изделий (PWA).",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f6f9",
+  "theme_color": "#1e6091",
+  "lang": "ru",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

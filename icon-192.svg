@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" fill="#1e6091" rx="28"/>
+  <g transform="translate(16 60)">
+    <!-- Pipe body -->
+    <rect x="0" y="20" width="160" height="40" fill="#e0e6ee" stroke="#0e3a5a" stroke-width="2"/>
+    <!-- Cut lines -->
+    <line x1="80" y1="14" x2="80" y2="66" stroke="#ff5252" stroke-width="3" stroke-dasharray="4 3"/>
+    <line x1="120" y1="14" x2="120" y2="66" stroke="#ff5252" stroke-width="3" stroke-dasharray="4 3"/>
+    <!-- Segment fills -->
+    <rect x="2" y="22" width="76" height="36" fill="#7cb342" opacity="0.9"/>
+    <rect x="82" y="22" width="36" height="36" fill="#42a5f5" opacity="0.9"/>
+    <rect x="122" y="22" width="36" height="36" fill="#ffb74d" opacity="0.9"/>
+  </g>
+  <text x="96" y="160" text-anchor="middle"
+        font-family="-apple-system, Segoe UI, Roboto, Arial, sans-serif"
+        font-size="22" font-weight="700" fill="#ffffff">РАСКРОЙ</text>
+</svg>
