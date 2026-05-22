@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e6091">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Раскрой труб">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Калькулятор раскроя труб</title>
+<style>
+:root {
+  --bg: #f4f6f9;
+  --card: #ffffff;
+  --text: #1f2933;
+  --muted: #6b7280;
+  --primary: #1e6091;
+  --primary-hover: #174c73;
+  --danger: #c0392b;
+  --danger-hover: #962d22;
+  --secondary: #e2e8f0;
+  --secondary-hover: #cbd5e0;
+  --border: #d8dde4;
+  --shadow: 0 1px 4px rgba(0,0,0,.06);
+  --main-color: #2e7d32;
+  --add1-color: #1976d2;
+  --add2-color: #ef6c00;
+  --waste-color: #b0b0b0;
+  --product-palette: #2e7d32, #1976d2, #ef6c00, #6a1b9a, #c2185b, #00838f, #5d4037, #455a64, #afb42b, #d84315;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.4;
+  font-size: 16px;
+  padding-bottom: 32px;
+}
+
+.app-header {
+  background: var(--primary);
+  color: #fff;
+  padding: 14px 16px 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: var(--shadow);
+}
+.app-header h1 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,.75);
+  padding: 10px 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.tab-btn.active {
+  color: #fff;
+  border-bottom-color: #fff;
+  font-weight: 600;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.card {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+}
+
+.field {
+  margin-bottom: 14px;
+  display: block;
+}
+.field label, .field legend {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  padding: 0;
+}
+.field input[type="text"],
+.field input[type="number"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 16px;
+  background: #fff;
+  color: var(--text);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.field input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(30,96,145,.18);
+}
+
+.row.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.calc-length-info {
+  background: #eef4fa;
+  border-left: 4px solid var(--primary);
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+.calc-length-info strong { font-size: 16px; color: var(--primary); }
+
+fieldset.field {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px 4px;
+}
+fieldset.field legend { padding: 0 6px; }
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 14px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.radio input { margin: 0; }
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.section-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.product-row {
+  display: grid;
+  grid-template-columns: 1fr 110px 40px;
+  gap: 8px;
+  align-items: center;
+}
+.product-row input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 15px;
+}
+.product-row .remove-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: var(--secondary);
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--danger);
+  font-weight: 700;
+}
+.product-row .remove-btn:hover { background: var(--secondary-hover); }
+.product-row[data-color] .color-indicator {
+  width: 4px;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.btn-primary, .btn-secondary, .btn-danger {
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: none;
+  transition: background .15s;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  width: 100%;
+}
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary:disabled { background: var(--muted); cursor: not-allowed; }
+.btn-secondary {
+  background: var(--secondary);
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.btn-secondary:hover { background: var(--secondary-hover); }
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.btn-danger:hover { background: var(--danger-hover); }
+
+.progress {
+  margin: 12px 0;
+  padding: 14px;
+  background: var(--card);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--secondary);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--primary);
+  transition: width .2s;
+  animation: progress-indeterminate 1.4s ease-in-out infinite;
+}
+@keyframes progress-indeterminate {
+  0%   { margin-left: -25%; width: 25%; }
+  50%  { margin-left: 50%; width: 30%; }
+  100% { margin-left: 100%; width: 20%; }
+}
+.progress-text {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.hidden { display: none !important; }
+
+.result h2 { margin-top: 0; font-size: 17px; }
+.result h3 { margin: 14px 0 6px; font-size: 15px; }
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.summary-item {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.summary-item .label { font-size: 12px; color: var(--muted); }
+.summary-item .value { font-size: 18px; font-weight: 600; margin-top: 2px; }
+
+.product-summary {
+  background: #f8fafc;
+  border-left: 4px solid var(--primary);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+.product-summary .ps-title { font-weight: 600; }
+.product-summary.error {
+  border-left-color: var(--danger);
+  background: #fdecec;
+  color: var(--danger);
+}
+
+.patterns-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+.patterns-table th,
+.patterns-table td {
+  padding: 6px 8px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.patterns-table th {
+  background: #eef4fa;
+  font-weight: 600;
+  color: var(--primary);
+}
+.patterns-table tfoot td {
+  font-weight: 600;
+  background: #f4f6f9;
+}
+
+.pattern-visual {
+  width: 100%;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+.pattern-visual .bar {
+  display: flex;
+  width: 100%;
+  height: 28px;
+}
+.pattern-visual .seg {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0,0,0,.4);
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 1px dashed rgba(255,255,255,.55);
+  box-sizing: border-box;
+}
+.pattern-visual .seg:last-child { border-right: none; }
+.pattern-visual .seg.waste {
+  background: var(--waste-color);
+  color: #333;
+  text-shadow: none;
+}
+.pattern-visual .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.pattern-visual .legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pattern-visual .legend-item .sw {
+  width: 12px; height: 12px; border-radius: 2px; display: inline-block;
+}
+
+.save-btn-row {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.history-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  background: #f8fafc;
+  transition: background .15s;
+}
+.history-item:hover { background: #eef4fa; }
+.history-item .hi-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.history-item .hi-name { font-weight: 600; font-size: 14px; }
+.history-item .hi-date { font-size: 12px; color: var(--muted); }
+.history-item .hi-summary { font-size: 13px; color: var(--text); }
+.history-item .hi-delete {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.history-item .hi-delete:hover { background: var(--danger); color: #fff; }
+.history-list .empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 20px;
+  font-size: 14px;
+}
+
+.error-msg {
+  background: #fdecec;
+  color: var(--danger);
+  border: 1px solid #f5b9b9;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.muted { color: var(--muted); font-size: 13px; }
+
+@media (max-width: 480px) {
+  .row.two-col { grid-template-columns: 1fr; }
+  .product-row { grid-template-columns: 1fr 90px 36px; }
+  .app-header h1 { font-size: 16px; }
+}
+
+</style>
+</head>
+<body>
+<header class="app-header">
+  <h1>Калькулятор раскроя труб</h1>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="calc">Расчёт</button>
+    <button class="tab-btn" data-tab="history">История</button>
+    <button class="tab-btn" data-tab="about">О программе</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ TAB: CALC ============ -->
+  <section id="tab-calc" class="tab-content active">
+    <form id="calc-form" class="card">
+      <div class="field">
+        <label for="calc-name">Название расчёта</label>
+        <input type="text" id="calc-name" placeholder="Например: Заказ №123" autocomplete="off">
+      </div>
+
+      <div class="row two-col">
+        <div class="field">
+          <label for="l-nom">Номинальная длина трубы, мм</label>
+          <input type="number" id="l-nom" value="11500" min="1" step="1" required>
+        </div>
+        <div class="field">
+          <label for="delta">Допуск ±, мм</label>
+          <input type="number" id="delta" value="100" min="0" step="1" required>
+        </div>
+      </div>
+
+      <div class="calc-length-info">
+        Расчётная длина трубы: <strong id="l-calc-display">11400</strong> мм
+      </div>
+
+      <fieldset class="field">
+        <legend>Количество швов</legend>
+        <label class="radio">
+          <input type="radio" name="seams" value="1" checked>
+          <span>1 шов (2 части)</span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="seams" value="2">
+          <span>2 шва (3 части)</span>
+        </label>
+      </fieldset>
+
+      <div class="field">
+        <div class="section-header">
+          <h2>Изделия</h2>
+          <button type="button" id="add-product" class="btn-secondary">+ Добавить изделие</button>
+        </div>
+        <div id="products-list" class="products-list"></div>
+      </div>
+
+      <button type="submit" id="calc-btn" class="btn-primary">Рассчитать</button>
+    </form>
+
+    <div id="progress" class="progress hidden">
+      <div class="progress-bar"><div class="progress-fill"></div></div>
+      <div class="progress-text">Идёт расчёт…</div>
+    </div>
+
+    <div id="result" class="result hidden"></div>
+  </section>
+
+  <!-- ============ TAB: HISTORY ============ -->
+  <section id="tab-history" class="tab-content">
+    <div class="card">
+      <div class="section-header">
+        <h2>История расчётов</h2>
+        <button type="button" id="clear-history" class="btn-danger">Очистить всю историю</button>
+      </div>
+      <div id="history-list" class="history-list"></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB: ABOUT ============ -->
+  <section id="tab-about" class="tab-content">
+    <div class="card">
+      <h2>О программе</h2>
+      <p>Калькулятор раскроя труб для сварных изделий. Полностью офлайн-приложение (PWA).</p>
+      <ul>
+        <li>Все размеры — миллиметры.</li>
+        <li>Расчёт ведётся по минимальной длине трубы: L_calc = L_nom − Δ.</li>
+        <li>Основная часть ≤ 9500 мм. Привариваемые отрезки ≥ 1000 мм и ≤ 40% от длины основной части, ≤ 9500 мм.</li>
+        <li>Выбирается разбиение с максимальной основной частью; при равенстве — с минимальной суммой дополнительных.</li>
+        <li>Минимизируется количество труб (приоритет), затем общий отход.</li>
+        <li>Алгоритм раскроя: жадный FFD по убыванию длин с группировкой повторяющихся паттернов. Для небольших задач выполняется уточняющий локальный поиск.</li>
+        <li>Данные сохраняются в localStorage. Можно установить на домашний экран как PWA.</li>
+      </ul>
+      <p class="muted">Версия 1.0</p>
+    </div>
+  </section>
+</main>
+
+<script>
+'use strict';
+
+/* =========================================================
+ * Калькулятор раскроя труб для сварных изделий
+ * Полностью офлайн ES6 (без внешних библиотек).
+ * ========================================================= */
+
+// ----- DOM helpers -----
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const fmtNum = (n) => Math.round(n).toLocaleString('ru-RU');
+const fmtPct = (n, d = 2) => (n * 100).toFixed(d) + '%';
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ----- Constants -----
+const MAX_SEG_HARD = 9500;
+const MIN_SEG_ADD = 1000;
+const MAX_ADD_RATIO = 0.4;
+const HISTORY_KEY = 'pipe-cutter:history';
+const INPUT_KEY = 'pipe-cutter:lastInput';
+const MAX_HISTORY = 200;
+
+// Цвет = функция от (productIdx, role).
+// Основная часть — насыщенный «product-цвет», доп.1 — контрастный к нему,
+// доп.2 — третий оттенок. Для большего числа изделий — генератор по HSL.
+const PRODUCT_PALETTES = [
+  { main: '#2e7d32', add1: '#1976d2', add2: '#42a5f5' }, // 1: зелёный + синий
+  { main: '#ef6c00', add1: '#fbc02d', add2: '#ffd54f' }, // 2: оранжевый + жёлтый
+  { main: '#6a1b9a', add1: '#c2185b', add2: '#ec407a' }, // 3: фиолетовый + розовый
+  { main: '#00838f', add1: '#26a69a', add2: '#80cbc4' }, // 4: бирюзовый + мятный
+  { main: '#5d4037', add1: '#a1887f', add2: '#bcaaa4' }, // 5: коричневый + бежевый
+  { main: '#455a64', add1: '#78909c', add2: '#b0bec5' }, // 6: серый + сталь
+  { main: '#827717', add1: '#9e9d24', add2: '#cddc39' }, // 7: оливковый + лайм
+  { main: '#d84315', add1: '#ff7043', add2: '#ffab91' }  // 8: терракот + лосось
+];
+function colorFor(productIdx, role) {
+  if (productIdx < PRODUCT_PALETTES.length) {
+    const p = PRODUCT_PALETTES[productIdx];
+    return p[role] || p.main;
+  }
+  // Фоллбэк: генерируем по HSL
+  const hue = (productIdx * 47) % 360;
+  const sat = role === 'main' ? 55 : 65;
+  const lit = role === 'main' ? 38 : role === 'add1' ? 50 : 62;
+  return `hsl(${hue}, ${sat}%, ${lit}%)`;
+}
+const WASTE_COLOR = '#b0b0b0';
+const ROLE_LABEL = { main: 'осн.', add1: 'доп.1', add2: 'доп.2' };
+
+const DEFAULT_INPUT = {
+  name: '',
+  lNom: 11500,
+  delta: 100,
+  seams: 1,
+  products: [
+    { length: 11080, count: 192 },
+    { length: 12120, count: 192 }
+  ]
+};
+
+// ----- App state -----
+const state = {
+  result: null
+};
+
+// =========================================================
+// ALGORITHM
+// =========================================================
+
+/**
+ * Для одного изделия L_i подбирает разбиение по правилу:
+ *   - максимум L_main;
+ *   - при равенстве — минимум суммы доп. длин (для 2 швов — отдельная развязка).
+ * Возвращает { main, adds: [add1] | [add1, add2] } либо null.
+ */
+function findBestPartition(L_i, seams, L_calc) {
+  const maxSeg = Math.min(MAX_SEG_HARD, L_calc);
+  if (L_i <= 0) return null;
+
+  if (seams === 1) {
+    const lowMain = Math.max(MIN_SEG_ADD, Math.ceil(L_i / (1 + MAX_ADD_RATIO)));
+    const highMain = Math.min(maxSeg, L_i - MIN_SEG_ADD);
+    for (let main = highMain; main >= lowMain; main--) {
+      const add = L_i - main;
+      if (add < MIN_SEG_ADD) continue;
+      if (add > maxSeg) continue;
+      if (add > MAX_ADD_RATIO * main + 1e-9) continue;
+      return { main, adds: [add] };
+    }
+    return null;
+  }
+
+  if (seams === 2) {
+    const lowMain = Math.max(MIN_SEG_ADD, Math.ceil(L_i / (1 + 2 * MAX_ADD_RATIO)));
+    const highMain = Math.min(maxSeg, L_i - 2 * MIN_SEG_ADD);
+    for (let main = highMain; main >= lowMain; main--) {
+      const sumAdds = L_i - main;
+      const maxAdd = Math.min(Math.floor(MAX_ADD_RATIO * main), maxSeg);
+      const lowAdd1 = Math.max(MIN_SEG_ADD, sumAdds - maxAdd);
+      const highAdd1 = Math.min(maxAdd, sumAdds - MIN_SEG_ADD);
+      if (lowAdd1 > highAdd1) continue;
+      // балансируем add1 ≈ sumAdds / 2, оставаясь в допустимом диапазоне
+      const ideal = Math.floor(sumAdds / 2);
+      const add1 = Math.max(lowAdd1, Math.min(highAdd1, ideal));
+      const add2 = sumAdds - add1;
+      if (add1 < MIN_SEG_ADD || add1 > maxAdd) continue;
+      if (add2 < MIN_SEG_ADD || add2 > maxAdd) continue;
+      return { main, adds: [add1, add2] };
+    }
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Формирует список типоразмеров. Каждый тип однозначно соответствует
+ * (productIdx, role) — это даёт ясную атрибуцию в плане раскроя.
+ * Если несколько (изделие, роль) имеют одинаковую длину, они остаются
+ * отдельными типами — это допустимо по спецификации.
+ */
+function buildTypeList(products, partitions) {
+  const types = [];
+  products.forEach((p, idx) => {
+    const part = partitions[idx];
+    if (!part) return;
+    types.push({ length: part.main, count: p.count, productIdx: idx, role: 'main' });
+    part.adds.forEach((a, i) => {
+      types.push({ length: a, count: p.count, productIdx: idx, role: 'add' + (i + 1) });
+    });
+  });
+  // FFD требует сортировки по убыванию длины. Тай-брейк — productIdx, чтобы
+  // одинаковые длины разных изделий обрабатывались устойчиво.
+  return types.sort((a, b) => b.length - a.length || a.productIdx - b.productIdx);
+}
+
+/**
+ * Решает задачу раскроя жадным FFD по убыванию длин.
+ * Пакеты идентичных длин обрабатываются батчем — это ускоряет работу
+ * при больших count, но даёт тот же результат, что и поштучный FFD.
+ *
+ * Возвращает { patterns, totalPipes, totalWaste, algorithm }.
+ */
+function solveCuttingFFD(typeList, L_calc) {
+  // Список «открытых» труб: { used, contents: Map<typeIdx, count> }
+  const pipes = [];
+  // Индекс по «оставшейся вместимости» (без структуры — наивный поиск).
+  // Для удобства мы группируем одинаковые отрезки.
+
+  const types = typeList.map((t, idx) => ({ length: t.length, count: t.count, idx }));
+
+  for (const t of types) {
+    let remaining = t.count;
+    if (remaining <= 0) continue;
+
+    // 1) Раскидываем по уже открытым трубам, пока туда вмещается.
+    for (const pipe of pipes) {
+      if (remaining <= 0) break;
+      const free = L_calc - pipe.used;
+      if (free < t.length) continue;
+      const canFit = Math.floor(free / t.length);
+      const place = Math.min(canFit, remaining);
+      if (place > 0) {
+        pipe.used += place * t.length;
+        pipe.contents.set(t.idx, (pipe.contents.get(t.idx) || 0) + place);
+        remaining -= place;
+      }
+    }
+
+    // 2) Оставшиеся пускаем в новые трубы; пока длина одного отрезка ≤ L_calc,
+    //    в одну трубу помещается floor(L_calc / t.length) одинаковых отрезков.
+    if (remaining > 0) {
+      if (t.length > L_calc) {
+        // Не должно случиться при корректных partitions.
+        throw new Error(`Отрезок ${t.length} мм не помещается в трубу ${L_calc} мм`);
+      }
+      const perPipe = Math.floor(L_calc / t.length);
+      while (remaining > 0) {
+        const place = Math.min(perPipe, remaining);
+        const pipe = { used: place * t.length, contents: new Map([[t.idx, place]]) };
+        pipes.push(pipe);
+        remaining -= place;
+      }
+    }
+  }
+
+  return aggregatePatterns(pipes, typeList, L_calc, 'ffd');
+}
+
+/**
+ * Группирует трубы с одинаковым составом (мультимножеством typeIdx)
+ * в одну строку плана раскроя.
+ */
+function aggregatePatterns(pipes, typeList, L_calc, algorithm) {
+  const map = new Map();
+  for (const pipe of pipes) {
+    // Каноничный ключ — отсортированный список typeIdx с количествами
+    const entries = Array.from(pipe.contents.entries()).sort((a, b) => a[0] - b[0]);
+    const key = entries.map(([k, v]) => k + ':' + v).join('|');
+    if (!map.has(key)) {
+      const composition = {};
+      for (const [k, v] of entries) composition[k] = v;
+      const usedLen = entries.reduce((s, [k, v]) => s + typeList[k].length * v, 0);
+      map.set(key, {
+        composition,
+        used: usedLen,
+        waste: L_calc - usedLen,
+        count: 0
+      });
+    }
+    map.get(key).count += 1;
+  }
+  const patterns = Array.from(map.values());
+  // Сортируем: чаще используемые сверху, при равенстве — меньший отход
+  patterns.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.waste - b.waste;
+  });
+  const totalPipes = pipes.length;
+  const totalWaste = patterns.reduce((s, p) => s + p.waste * p.count, 0);
+  return { patterns, totalPipes, totalWaste, algorithm };
+}
+
+/**
+ * Подобрать партицию: текущая seams; если не подошло — пробуем альтернативную
+ * и формируем подсказку.
+ */
+function planPartitions(products, seams, L_calc) {
+  const partitions = [];
+  const problems = [];
+  products.forEach((p, idx) => {
+    const part = findBestPartition(p.length, seams, L_calc);
+    if (!part) {
+      const alt = findBestPartition(p.length, seams === 1 ? 2 : 1, L_calc);
+      let msg = `Изделие ${idx + 1} (${fmtNum(p.length)} мм): не удалось подобрать разбиение `
+              + `для ${seams === 1 ? '1 шва' : '2 швов'} в трубе ${fmtNum(L_calc)} мм.`;
+      if (alt) {
+        msg += ` Попробуйте ${seams === 1 ? '2 шва' : '1 шов'} — там есть допустимое разбиение.`;
+      } else {
+        msg += ` Также нет допустимого разбиения для ${seams === 1 ? '2 швов' : '1 шва'}.`;
+      }
+      problems.push(msg);
+    }
+    partitions.push(part);
+  });
+  return { partitions, problems };
+}
+
+// =========================================================
+// UI: PRODUCTS LIST
+// =========================================================
+
+function createProductRow(length = '', count = '') {
+  const row = document.createElement('div');
+  row.className = 'product-row';
+  row.innerHTML = `
+    <input type="number" class="p-length" min="1" step="1" placeholder="Длина (мм)" value="${length}" required>
+    <input type="number" class="p-count" min="1" step="1" placeholder="Кол-во" value="${count}" required>
+    <button type="button" class="remove-btn" title="Удалить">✕</button>
+  `;
+  row.querySelector('.remove-btn').addEventListener('click', () => {
+    if ($$('.product-row').length > 1) {
+      row.remove();
+    } else {
+      row.querySelector('.p-length').value = '';
+      row.querySelector('.p-count').value = '';
+    }
+    saveInputState();
+  });
+  row.querySelector('.p-length').addEventListener('input', saveInputState);
+  row.querySelector('.p-count').addEventListener('input', saveInputState);
+  return row;
+}
+
+function renderProducts(products) {
+  const list = $('#products-list');
+  list.innerHTML = '';
+  const arr = (products && products.length) ? products : [{ length: '', count: '' }];
+  arr.forEach(p => list.appendChild(createProductRow(p.length, p.count)));
+}
+
+// =========================================================
+// UI: FORM I/O
+// =========================================================
+
+function readForm() {
+  return {
+    name: $('#calc-name').value.trim(),
+    lNom: parseInt($('#l-nom').value, 10) || 0,
+    delta: parseInt($('#delta').value, 10) || 0,
+    seams: parseInt(($('input[name="seams"]:checked') || {}).value, 10) || 1,
+    products: $$('.product-row').map(row => ({
+      length: parseInt(row.querySelector('.p-length').value, 10) || 0,
+      count: parseInt(row.querySelector('.p-count').value, 10) || 0
+    }))
+  };
+}
+
+function applyForm(input) {
+  $('#calc-name').value = input.name || '';
+  $('#l-nom').value = input.lNom;
+  $('#delta').value = input.delta;
+  $$('input[name="seams"]').forEach(r => r.checked = parseInt(r.value, 10) === input.seams);
+  renderProducts(input.products);
+  updateLCalcDisplay();
+}
+
+function saveInputState() {
+  try {
+    localStorage.setItem(INPUT_KEY, JSON.stringify(readForm()));
+  } catch (e) { /* quota etc. */ }
+}
+
+function loadInputState() {
+  try {
+    const data = JSON.parse(localStorage.getItem(INPUT_KEY) || 'null');
+    if (data && typeof data === 'object') return Object.assign({}, DEFAULT_INPUT, data);
+  } catch (e) {}
+  return DEFAULT_INPUT;
+}
+
+function updateLCalcDisplay() {
+  const lNom = parseInt($('#l-nom').value, 10) || 0;
+  const delta = parseInt($('#delta').value, 10) || 0;
+  $('#l-calc-display').textContent = fmtNum(lNom - delta);
+}
+
+// =========================================================
+// CALCULATION
+// =========================================================
+
+function validateInput(input) {
+  const errors = [];
+  if (input.lNom <= 0) errors.push('Номинальная длина трубы должна быть положительной.');
+  if (input.delta < 0) errors.push('Допуск не может быть отрицательным.');
+  const lCalc = input.lNom - input.delta;
+  if (lCalc <= 0) errors.push(`L_calc = ${lCalc} мм ≤ 0. Проверьте параметры.`);
+  if (lCalc < MIN_SEG_ADD) errors.push(`L_calc = ${lCalc} мм меньше минимального отрезка (${MIN_SEG_ADD} мм).`);
+  if (!input.products.length) errors.push('Добавьте хотя бы одно изделие.');
+  input.products.forEach((p, i) => {
+    if (p.length <= 0) errors.push(`Изделие ${i + 1}: длина должна быть положительной.`);
+    if (p.count <= 0) errors.push(`Изделие ${i + 1}: количество должно быть положительным.`);
+  });
+  return { errors, lCalc };
+}
+
+async function performCalc() {
+  const input = readForm();
+  saveInputState();
+
+  const { errors, lCalc } = validateInput(input);
+  if (errors.length) {
+    showResultError(errors);
+    return;
+  }
+
+  showProgress(true, 'Подбираем разбиения изделий…');
+  await sleep(20);
+
+  const { partitions, problems } = planPartitions(input.products, input.seams, lCalc);
+  if (problems.length) {
+    showResultError(problems);
+    showProgress(false);
+    return;
+  }
+
+  showProgress(true, 'Считаем план раскроя…');
+  await sleep(20);
+
+  const typeList = buildTypeList(input.products, partitions);
+  let cutResult;
+  try {
+    cutResult = solveCuttingFFD(typeList, lCalc);
+  } catch (e) {
+    showResultError([e.message || String(e)]);
+    showProgress(false);
+    return;
+  }
+
+  showProgress(false);
+  renderResult(input, lCalc, partitions, typeList, cutResult);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// =========================================================
+// RESULT RENDERING
+// =========================================================
+
+function showProgress(show, text = 'Идёт расчёт…') {
+  const el = $('#progress');
+  el.classList.toggle('hidden', !show);
+  if (show) el.querySelector('.progress-text').textContent = text;
+  $('#calc-btn').disabled = show;
+}
+
+function showResultError(errors) {
+  const result = $('#result');
+  result.classList.remove('hidden');
+  result.innerHTML = `
+    <div class="card">
+      <div class="error-msg">
+        <strong>Не удалось завершить расчёт:</strong>
+        <ul>${errors.map(e => `<li>${escapeHTML(e)}</li>`).join('')}</ul>
+      </div>
+    </div>
+  `;
+  result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function describeType(t) {
+  return `${ROLE_LABEL[t.role] || t.role} (изд. ${t.productIdx + 1})`;
+}
+
+function typeColor(t) {
+  return colorFor(t.productIdx, t.role);
+}
+
+function getProductColor(productIdx) {
+  return colorFor(productIdx, 'main');
+}
+
+function renderResult(input, lCalc, partitions, typeList, cutResult) {
+  state.result = { input, lCalc, partitions, typeList, cutResult };
+
+  const totalNominal = cutResult.totalPipes * input.lNom;
+  const wastePct = totalNominal > 0 ? cutResult.totalWaste / totalNominal : 0;
+
+  const summaryHTML = `
+    <div class="card">
+      <h2>Итоги расчёта${input.name ? ' — ' + escapeHTML(input.name) : ''}</h2>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="label">Использовано труб</div>
+          <div class="value">${fmtNum(cutResult.totalPipes)}</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">Общий отход</div>
+          <div class="value">${fmtNum(cutResult.totalWaste)} мм</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">% отхода от L_nom</div>
+          <div class="value">${fmtPct(wastePct)}</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">Расчётная длина трубы</div>
+          <div class="value">${fmtNum(lCalc)} мм</div>
+        </div>
+      </div>
+      <p class="muted">Алгоритм раскроя: First-Fit Decreasing (приближённое решение для cutting-stock).</p>
+    </div>
+  `;
+
+  const productsHTML = `
+    <div class="card">
+      <h2>Разбиение по изделиям</h2>
+      ${input.products.map((p, idx) => {
+        const part = partitions[idx];
+        const addsStr = part.adds.map((a, i) => {
+          const pct = (a / part.main * 100).toFixed(1);
+          return `доп.${i + 1} ${fmtNum(a)} мм (${pct}% от осн.)`;
+        }).join(', ');
+        return `
+          <div class="product-summary">
+            <div class="ps-title">
+              <span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${getProductColor(idx)};margin-right:6px;"></span>
+              Изделие ${idx + 1} (${fmtNum(p.length)} мм × ${fmtNum(p.count)})
+            </div>
+            <div>основная ${fmtNum(part.main)} мм, ${addsStr}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  const patternsHTML = renderPatternsTable(input, lCalc, partitions, typeList, cutResult);
+
+  const saveHTML = `
+    <div class="card">
+      <button id="save-history" class="btn-primary">Сохранить в историю</button>
+    </div>
+  `;
+
+  const result = $('#result');
+  result.classList.remove('hidden');
+  result.innerHTML = summaryHTML + productsHTML + patternsHTML + saveHTML;
+  $('#save-history').addEventListener('click', saveToHistory);
+  result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderPatternsTable(input, lCalc, partitions, typeList, cutResult) {
+  const rows = cutResult.patterns.map((p, idx) => {
+    const compEntries = Object.entries(p.composition); // [typeIdxStr, cnt]
+    const compString = compEntries.map(([ti, cnt]) => {
+      const t = typeList[parseInt(ti, 10)];
+      return `${describeType(t)} ×${cnt} (${fmtNum(t.length)} мм)`;
+    }).join('; ');
+    const visual = renderPatternVisual(p, typeList, lCalc);
+    return `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>
+          <div>${compString}</div>
+          ${visual}
+        </td>
+        <td>${fmtNum(p.count)}</td>
+        <td>${fmtNum(p.waste)} мм</td>
+        <td>${fmtNum(p.waste * p.count)} мм</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <div class="card">
+      <h2>План раскроя труб</h2>
+      <table class="patterns-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Состав и схема раскроя</th>
+            <th>Труб, шт</th>
+            <th>Отход / труба</th>
+            <th>Сум. отход</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">Итого</td>
+            <td>${fmtNum(cutResult.totalPipes)}</td>
+            <td>—</td>
+            <td>${fmtNum(cutResult.totalWaste)} мм</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  `;
+}
+
+function renderPatternVisual(pattern, typeList, lCalc) {
+  // Собираем сегменты в порядке убывания длины
+  const segs = [];
+  for (const [tiStr, cnt] of Object.entries(pattern.composition)) {
+    const ti = parseInt(tiStr, 10);
+    const t = typeList[ti];
+    for (let i = 0; i < cnt; i++) {
+      segs.push({
+        length: t.length,
+        color: typeColor(t),
+        label: `${fmtNum(t.length)}`,
+        tip: `${describeType(t)} ${fmtNum(t.length)} мм`
+      });
+    }
+  }
+  segs.sort((a, b) => b.length - a.length);
+  if (pattern.waste > 0) {
+    segs.push({
+      length: pattern.waste,
+      color: WASTE_COLOR,
+      label: 'отход ' + fmtNum(pattern.waste),
+      tip: 'Отход ' + fmtNum(pattern.waste) + ' мм',
+      isWaste: true
+    });
+  }
+
+  const total = lCalc;
+  const barHTML = segs.map(s => {
+    const pct = (s.length / total * 100);
+    const cls = s.isWaste ? 'seg waste' : 'seg';
+    const showLabel = pct >= 6;
+    return `<div class="${cls}" style="width:${pct.toFixed(3)}%;background:${s.color}" title="${escapeHTML(s.tip)}">${showLabel ? escapeHTML(s.label) : ''}</div>`;
+  }).join('');
+
+  // Легенда (уникальные типы + отход)
+  const legendMap = new Map();
+  for (const [tiStr] of Object.entries(pattern.composition)) {
+    const ti = parseInt(tiStr, 10);
+    const t = typeList[ti];
+    legendMap.set(ti, { color: typeColor(t), label: `${describeType(t)} — ${fmtNum(t.length)} мм` });
+  }
+  const legendItems = Array.from(legendMap.values());
+  if (pattern.waste > 0) legendItems.push({ color: WASTE_COLOR, label: `отход — ${fmtNum(pattern.waste)} мм` });
+  const legendHTML = legendItems.map(l =>
+    `<span class="legend-item"><span class="sw" style="background:${l.color}"></span>${escapeHTML(l.label)}</span>`
+  ).join('');
+
+  return `
+    <div class="pattern-visual">
+      <div class="bar">${barHTML}</div>
+      <div class="legend">${legendHTML}</div>
+    </div>
+  `;
+}
+
+// =========================================================
+// HISTORY
+// =========================================================
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function persistHistory(items) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items)); }
+  catch (e) { /* quota */ }
+}
+
+function saveToHistory() {
+  if (!state.result) return;
+  const items = loadHistory();
+  const r = state.result;
+  const record = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    timestamp: new Date().toISOString(),
+    name: r.input.name || `Без названия (${new Date().toLocaleString('ru-RU')})`,
+    input: r.input,
+    lCalc: r.lCalc,
+    partitions: r.partitions,
+    typeList: r.typeList,
+    cutResult: r.cutResult
+  };
+  items.unshift(record);
+  if (items.length > MAX_HISTORY) items.length = MAX_HISTORY;
+  persistHistory(items);
+
+  const btn = $('#save-history');
+  btn.textContent = '✓ Сохранено';
+  btn.disabled = true;
+  setTimeout(() => {
+    if (btn.isConnected) {
+      btn.textContent = 'Сохранить в историю';
+      btn.disabled = false;
+    }
+  }, 1800);
+}
+
+function renderHistory() {
+  const items = loadHistory();
+  const container = $('#history-list');
+  container.innerHTML = '';
+  if (!items.length) {
+    container.innerHTML = '<div class="empty">История пуста. Нажмите «Сохранить в историю» после расчёта.</div>';
+    return;
+  }
+  for (const item of items) {
+    const d = new Date(item.timestamp);
+    const productsSummary = item.input.products.map(p => `${fmtNum(p.length)}×${fmtNum(p.count)}`).join(', ');
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="hi-row">
+        <div class="hi-name">${escapeHTML(item.name)}</div>
+        <button type="button" class="hi-delete">Удалить</button>
+      </div>
+      <div class="hi-date">${escapeHTML(d.toLocaleString('ru-RU'))}</div>
+      <div class="hi-summary">Труба ${fmtNum(item.input.lNom)} ±${fmtNum(item.input.delta)} мм, ${item.input.seams === 1 ? '1 шов' : '2 шва'}; изделия: ${escapeHTML(productsSummary)}</div>
+      <div class="hi-summary"><strong>Труб: ${fmtNum(item.cutResult.totalPipes)}; отход ${fmtNum(item.cutResult.totalWaste)} мм</strong></div>
+    `;
+    div.addEventListener('click', (e) => {
+      if (e.target.classList.contains('hi-delete')) return;
+      loadHistoryItem(item);
+    });
+    div.querySelector('.hi-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('Удалить эту запись?')) {
+        persistHistory(loadHistory().filter(x => x.id !== item.id));
+        renderHistory();
+      }
+    });
+    container.appendChild(div);
+  }
+}
+
+function loadHistoryItem(item) {
+  // Открыть вкладку расчёта
+  $('.tab-btn[data-tab="calc"]').click();
+  applyForm(item.input);
+  state.result = {
+    input: item.input,
+    lCalc: item.lCalc,
+    partitions: item.partitions,
+    typeList: item.typeList,
+    cutResult: item.cutResult
+  };
+  renderResult(item.input, item.lCalc, item.partitions, item.typeList, item.cutResult);
+}
+
+function clearAllHistory() {
+  if (confirm('Удалить всю историю расчётов? Действие необратимо.')) {
+    persistHistory([]);
+    renderHistory();
+  }
+}
+
+// =========================================================
+// TABS
+// =========================================================
+
+function initTabs() {
+  $$('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.tab-btn').forEach(b => b.classList.remove('active'));
+      $$('.tab-content').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      $('#tab-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'history') renderHistory();
+    });
+  });
+}
+
+// =========================================================
+// INIT
+// =========================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  initTabs();
+  applyForm(loadInputState());
+
+  $('#l-nom').addEventListener('input', () => { updateLCalcDisplay(); saveInputState(); });
+  $('#delta').addEventListener('input', () => { updateLCalcDisplay(); saveInputState(); });
+  $('#calc-name').addEventListener('input', saveInputState);
+  $$('input[name="seams"]').forEach(r => r.addEventListener('change', saveInputState));
+
+  $('#add-product').addEventListener('click', () => {
+    $('#products-list').appendChild(createProductRow());
+    saveInputState();
+  });
+
+  $('#calc-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    performCalc();
+  });
+
+  $('#clear-history').addEventListener('click', clearAllHistory);
+});
+
+// Expose algorithm primitives for unit tests / debugging in console.
+window.PipeCutter = {
+  findBestPartition,
+  buildTypeList,
+  solveCuttingFFD,
+  planPartitions
+};
+
+</script>
+
+</body>
+</html>
